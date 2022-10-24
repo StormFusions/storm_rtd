@@ -1,6 +1,6 @@
 
 include("rtd_config.lua")
---testing
+--testing 2
 net.Receive("RTDChat", function()
 	local Text = {}
 	local msg = net.ReadString()
