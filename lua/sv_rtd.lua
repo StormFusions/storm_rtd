@@ -1,6 +1,5 @@
 include("rtd_config.lua")
 include("sv_rtdresults.lua")
-RTD = {}
 
 local RTDTimer = RTDC.Time
 
@@ -10,12 +9,10 @@ util.AddNetworkString("RTDPrivate")
 local meta = FindMetaTable("Player")
 
 function RTDGlobalMessage(ply, msg)
-	for k, v in pairs(player.GetAll()) do
-		net.Start("RTDChat")
-			net.WriteString(msg)
-			net.WriteEntity(ply)
-		net.Send(v)
-	end
+	net.Start("RTDChat")
+		net.WriteString(msg)
+		net.WriteEntity(ply)
+	net.Broadcast()
 end
 
 function meta:RTDPrivateMessage(msg)
@@ -25,49 +22,62 @@ function meta:RTDPrivateMessage(msg)
 end
 
 function meta:StartRTD()
-	if self:Alive() then
-		if timer.Exists(self:SteamID().."_delay") then
-			local timeleft = math.Round(timer.TimeLeft(self:SteamID().."_delay"))
-			self:RTDPrivateMessage("You already used RTD command! You have "..timeleft.." seconds left!")
-			return
-		end
-
-		local result = table.Random(RTD.Results)
-		result(self)
-		timer.Create(self:SteamID().."_delay", RTDTimer, 1, function() timer.Destroy(self:SteamID().."_delay") end)
-
-	else
+	if not self:Alive() then
 		self:RTDPrivateMessage("You need to be alive to use RTD command")
+		return 
 	end
+
+	local delay = RTDTimer 
+    local currentTime = CurTime()
+
+	if not self.lastRTD then self.lastRTD = currentTime - delay end
+
+    if currentTime < self.lastRTD + delay then
+        local timeLeft = math.ceil((self.lastRTD + delay) - currentTime)
+        self:RTDPrivateMessage("You already used RTD command! You have " .. timeLeft .. " seconds left!")
+        return
+    end
+
+	-- Remove this if you want it to work with any other gamemode or change TEAM_RUNNER to a team you only want to use the command
+	if not self:Team() == TEAM_RUNNER then
+		self:RTDPrivateMessage("You can't use this command while on the death team!")
+		return
+	end
+
+	local result = table.Random(RTD.Results)
+	result(self)
+	self.lastRTD = currentTime
 end
 
 function meta:RTDDevCommand()
-	if timer.Exists(self:SteamID().."_delay") then
-		timer.Destroy(self:SteamID().."_delay")
+	if self.lastRTD then
+		self.lastRTD = nil
 	end
 end
 
-hook.Add("PlayerSay", "RTDChatCommand", function(ply, text, public)
+local chatCommands = {}
+
+chatCommands["!rtd"] = function(ply, arg)
+
+	ply:StartRTD()
+
+end
+
+chatCommands["!rtd reset"] = function(ply, arg)
+	if ply:IsSuperAdmin() then
+		ply:RTDDevCommand()
+		ply:RTDPrivateMessage("RTD been reset")
+	end
+end
+
+hook.Add("PlayerSay", "RTDChatCommands", function(ply, text, public)
 	text = string.lower(text)
-	if string.sub(text, 1) == "!rtd" then
-		ply:StartRTD()
+	if chatCommands[text] then
+		chatCommands[text](ply, text)
 		return ""
 	end
 end)
 
-hook.Add("PlayerSay", "RTDDevCommand", function(ply, text, public)
-	text = string.lower(text)
-	if string.sub(text, 1) == "!rtd reset" then
-		if ply:IsSuperAdmin() then
-			ply:RTDDevCommand()
-			ply:RTDPrivateMessage("RTD been reset")
-			return ""
-		end
-	end
-end)
-
-hook.Add("PlayerDisconnected", "RTDDisconnect", function(ply)
-	if timer.Exists(ply:SteamID().."_delay") then
-		timer.Destroy(ply:SteamID().."_delay")
-	end
+concommand.Add("storm_rtd", function(ply)
+	ply:StartRTD()
 end)

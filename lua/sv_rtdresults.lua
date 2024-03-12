@@ -1,4 +1,5 @@
 -----------------------------------Good Results-----------------------------------
+RTD = {}
 
 local function IncreaseHealth(ply)
 	local i = math.random(2, 50)
@@ -53,7 +54,7 @@ local function GodMode(ply)
 
 		RTDGlobalMessage(ply, " has been given God mode for "..t.." seconds!")
 	else
-		RTDGlobalMessage(ply, " has been given God mode but it was just a prank bro!")
+		RTDGlobalMessage(ply, " has been given God mode but the gods thought otherwise!")
 	end
 end
 
